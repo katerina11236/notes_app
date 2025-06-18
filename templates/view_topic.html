@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Тема: {{ topic.name }}</h2>
+    
+    <div class="d-flex justify-content-between mb-3">
+        <a href="{{ url_for('add_note') }}?topic_id={{ topic.id }}" class="btn btn-primary">Добавить заметку</a>
+        <a href="{{ url_for('list_topics') }}" class="btn btn-secondary">Назад к темам</a>
+    </div>
+    
+    {% if notes %}
+    <div class="row">
+        {% for note in notes %}
+        <div class="col-md-6 mb-4">
+            <div class="card note-card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ note.title }}</h5>
+                    <p class="card-text">{{ note.content|truncate(100) }}</p>
+                    <a href="{{ url_for('view_note', id=note.id) }}" class="btn btn-sm btn-primary">Читать</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">В этой теме пока нет заметок.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Новая заметка</h2>
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="title" class="form-label">Заголовок</label>
+        <input type="text" class="form-control" id="title" name="title" required>
+    </div>
+    
+    <div class="mb-3">
+        <label for="content" class="form-label">Содержание</label>
+        <textarea class="form-control" id="content" name="content" rows="5" required></textarea>
+    </div>
+    
+    <div class="mb-3">
+        <label for="topic_id" class="form-label">Тема</label>
+        <select class="form-select" id="topic_id" name="topic_id">
+            <option value="">Без темы</option>
+            {% for topic in topics %}
+            <option value="{{ topic.id }}">{{ topic.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="mb-3">
+        <label for="image" class="form-label">Изображение</label>
+        <input class="form-control" type="file" id="image" name="image" accept="image/*">
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+{% endblock %}

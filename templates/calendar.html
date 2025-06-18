@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Мой календарь</h2>
+<a href="{{ url_for('add_reminder') }}" class="btn">Добавить напоминание</a>
+
+<div class="calendar">
+    {% for date_str, reminders in events.items() %}
+        <div class="calendar-day">
+            <h3>{{ date_str }}</h3>
+            <div class="reminders-list">
+                {% for reminder in reminders %}
+                    <div class="reminder {% if reminder.is_completed %}completed{% endif %}">
+                        <div class="reminder-time">
+                            {{ reminder.remind_time.time().strftime('%H:%M') }}
+                        </div>
+                        <div class="reminder-content">
+                            <h4>{{ reminder.title }}</h4>
+                            {% if reminder.note %}
+                                <p>{{ reminder.note }}</p>
+                            {% endif %}
+                            <div class="reminder-actions">
+                                {% if not reminder.is_completed %}
+                                    <a href="{{ url_for('complete_reminder', id=reminder.id) }}" 
+                                       class="btn btn-sm">Выполнено</a>
+                                {% endif %}
+                                <a href="{{ url_for('delete_reminder', id=reminder.id) }}" 
+                                   class="btn btn-sm btn-danger">Удалить</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <p>У вас пока нет напоминаний.</p>
+    {% endfor %}
+</div>
+{% endblock %}

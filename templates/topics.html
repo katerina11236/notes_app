@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Мои темы</h2>
+    <a href="{{ url_for('add_topic') }}" class="btn btn-primary mb-3">Добавить тему</a>
+    
+    <div class="row">
+        {% for topic in topics %}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ topic.name }}</h5>
+                    <a href="{{ url_for('view_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary">Просмотр</a>
+                    <a href="{{ url_for('delete_topic', topic_id=topic.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Удалить тему и все заметки в ней?')">Удалить</a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">У вас пока нет тем. Создайте первую!</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

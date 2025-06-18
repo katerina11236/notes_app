@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Мои расписания</h2>
+<a href="{{ url_for('add_schedule') }}" class="btn">Добавить расписание</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Название</th>
+            <th>Описание</th>
+            <th>Повторение</th>
+            <th>Время</th>
+            <th>Дата начала</th>
+            <th>Дата окончания</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for schedule in schedules %}
+        <tr>
+            <td>{{ schedule.title }}</td>
+            <td>{{ schedule.description or '' }}</td>
+            <td>{{ schedule.frequency }}</td>
+            <td>{{ schedule.time_of_day.strftime('%H:%M') }}</td>
+            <td>{{ schedule.start_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ schedule.end_date.strftime('%Y-%m-%d') if schedule.end_date else 'Нет' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

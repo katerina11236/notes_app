@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Добавить напоминание</h2>
+<form method="POST">
+    <div class="form-group">
+        <label for="title">Название:</label>
+        <input type="text" id="title" name="title" required>
+    </div>
+    <div class="form-group">
+        <label for="note">Заметка (необязательно):</label>
+        <textarea id="note" name="note"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="remind_time">Дата и время напоминания:</label>
+        <input type="datetime-local" id="remind_time" name="remind_time" 
+               min="{{ min_date }}" required>
+    </div>
+    <button type="submit" class="btn">Сохранить</button>
+    <a href="{{ url_for('calendar') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

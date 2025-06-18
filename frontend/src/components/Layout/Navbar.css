@@ -1,0 +1,58 @@
+.navbar {
+    background-color: #007bff; /* Primary color from Bootstrap */
+    padding: 10px 20px;
+    color: white;
+}
+
+.navbar-container {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand {
+    color: white;
+    text-decoration: none;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.navbar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.nav-item {
+    margin-left: 15px;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 8px 10px;
+    border-radius: 4px;
+}
+
+.nav-link:hover, .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.user-greeting {
+    font-style: italic;
+}
+
+.btn-logout {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1em; /* Match nav-link */
+}
+.btn-logout:hover {
+     background-color: rgba(255, 255, 255, 0.2);
+}

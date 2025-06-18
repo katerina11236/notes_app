@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4>Поделиться заметкой: {{ note.title }}</h4>
+    </div>
+    
+    <div class="card-body">
+        <form method="POST" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="username" class="form-label">Имя пользователя</label>
+                    <input type="text" class="form-control" id="username" name="username" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Права</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="can_edit" name="can_edit">
+                        <label class="form-check-label" for="can_edit">Разрешить редактирование</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </div>
+        </form>
+        
+        <h5>Пользователи с доступом:</h5>
+        <ul class="list-group">
+            {% for share in note.shares %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    {{ share.recipient.username }}
+                    {% if share.can_edit %}
+                    <span class="badge bg-success ms-2">Редактирование</span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('revoke_share', share_id=share.id) }}" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash"></i> Удалить
+                </a>
+            </li>
+            {% else %}
+            <li class="list-group-item">Нет пользователей с доступом</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

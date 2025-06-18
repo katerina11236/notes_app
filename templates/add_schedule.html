@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Добавить расписание</h2>
+<form method="POST">
+    <div class="form-group">
+        <label>Название:</label>
+        <input type="text" name="title" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Описание:</label>
+        <textarea name="description" class="form-control"></textarea>
+    </div>
+    <div class="form-group">
+        <label>Повторение:</label>
+        <select name="frequency" class="form-control" required>
+            <option value="daily">Ежедневно</option>
+            <option value="weekly">Еженедельно</option>
+            <option value="monthly">Ежемесячно</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Время:</label>
+        <input type="time" name="time" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Дата начала:</label>
+        <input type="date" name="start_date" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label>Дата окончания (необязательно):</label>
+        <input type="date" name="end_date" class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+{% endblock %}
