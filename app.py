@@ -53,11 +53,18 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    image = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'))
     shares = db.relationship('NoteShare', backref='note', lazy=True, cascade="all, delete-orphan")
+    images = db.relationship('NoteImage', backref='note', lazy=True, cascade="all, delete-orphan")
+
+class NoteImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(100), nullable=False)
+    note_id = db.Column(db.Integer, db.ForeignKey('note.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    order = db.Column(db.Integer, default=0) 
 
 class NoteShare(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -93,6 +100,31 @@ atexit.register(lambda: scheduler.shutdown())
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def save_uploaded_files(files):
+    """Сохраняет несколько файлов и возвращает список имен файлов"""
+    saved_files = []
+    for file in files:
+        if file and file.filename != '' and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Добавляем timestamp для уникальности
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+            filename = f"{timestamp}_{filename}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            saved_files.append(filename)
+    return saved_files
+
+def delete_note_images(note_id):
+    """Удаляет все изображения заметки"""
+    note_images = NoteImage.query.filter_by(note_id=note_id).all()
+    for note_image in note_images:
+        try:
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], note_image.filename))
+        except OSError:
+            pass
+    NoteImage.query.filter_by(note_id=note_id).delete()
+    db.session.commit()
+    
 def create_schedule_reminders(schedule):
     current_date = schedule.start_date
     end_date = schedule.end_date or (datetime.now().date() + timedelta(days=365))
@@ -196,16 +228,23 @@ def get_notes_api():
     
     notes_data = []
     for note in notes_query.all():
+        # Получаем первое изображение для превью
+        first_image = NoteImage.query.filter_by(note_id=note.id).order_by(NoteImage.order).first()
+        image_url = None
+        if first_image:
+            image_url = url_for('static', filename=f'uploads/{first_image.filename}', _external=True)
+        
         notes_data.append({
             'id': note.id,
             'title': note.title,
             'content': note.content,
-            'image': note.image,
+            'first_image': image_url,
+            'image_count': len(note.images),
             'created_at': note.created_at.isoformat(),
             'user_id': note.user_id,
             'topic_id': note.topic_id,
-            'author_username': note.author.username, # Add author username
-            'topic_name': note.topic.name if note.topic else None, # Add topic name
+            'author_username': note.author.username,
+            'topic_name': note.topic.name if note.topic else None,
             'is_owner': note.user_id == current_user.id,
             'can_edit_shared': any(s.can_edit for s in note.shares if s.user_id == current_user.id)
         })
@@ -217,30 +256,41 @@ def add_note_api():
     title = request.form.get('title')
     content = request.form.get('content')
     topic_id = request.form.get('topic_id')
-    file = request.files.get('image')
+    
+    # Получаем все файлы с ключом 'images[]'
+    files = request.files.getlist('images[]')
     
     if not title or not content:
         return {'message': 'Заполните обязательные поля'}, 400
     
-    filename = None
-    if file and file.filename != '':
-        if allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        else:
-            return {'message': 'Недопустимый формат изображения'}, 400
-            
+    # Создаем заметку
     note = Note(
         title=title,
         content=content,
-        image=filename,
         user_id=current_user.id,
         topic_id=topic_id if topic_id and topic_id != "null" and topic_id != "" else None
     )
     db.session.add(note)
+    db.session.commit()  # Коммитим, чтобы получить note.id
+    
+    # Сохраняем изображения
+    saved_filenames = save_uploaded_files(files)
+    for i, filename in enumerate(saved_filenames):
+        note_image = NoteImage(
+            filename=filename,
+            note_id=note.id,
+            order=i
+        )
+        db.session.add(note_image)
+    
     db.session.commit()
-    return {'message': 'Заметка успешно создана!', 'note_id': note.id}, 201
-
+    
+    return {
+        'message': 'Заметка успешно создана!', 
+        'note_id': note.id,
+        'image_count': len(saved_filenames)
+    }, 201
+    
 @app.route('/api/notes/<int:id>', methods=['GET'])
 @login_required
 def view_note_api(id):
@@ -249,7 +299,20 @@ def view_note_api(id):
     share_info = NoteShare.query.filter_by(note_id=id, user_id=current_user.id).first()
 
     if not is_owner and not share_info:
-        abort(403) # Or return {'message': 'Access denied'}, 403
+        abort(403)
+    
+    # Получаем все изображения заметки
+    note_images = NoteImage.query.filter_by(note_id=id).order_by(NoteImage.order).all()
+    images_data = [
+        {
+            'id': img.id,
+            'filename': img.filename,
+            'url': url_for('static', filename=f'uploads/{img.filename}', _external=True),
+            'created_at': img.created_at.isoformat(),
+            'order': img.order
+        }
+        for img in note_images
+    ]
     
     shares_data = []
     for share in note.shares:
@@ -264,7 +327,7 @@ def view_note_api(id):
         'id': note.id,
         'title': note.title,
         'content': note.content,
-        'image': note.image,
+        'images': images_data,
         'created_at': note.created_at.isoformat(),
         'user_id': note.user_id,
         'author_username': note.author.username,
@@ -274,7 +337,7 @@ def view_note_api(id):
         'is_owner': is_owner,
         'can_edit_shared': share_info.can_edit if share_info else False
     }, 200
-
+    
 @app.route('/api/notes/<int:id>', methods=['PUT'])
 @login_required
 def edit_note_api(id):
@@ -290,19 +353,42 @@ def edit_note_api(id):
     topic_id = request.form.get('topic_id')
     note.topic_id = topic_id if topic_id and topic_id != "null" and topic_id != "" else None
     
-    file = request.files.get('image')
+    # Получаем новые изображения
+    new_files = request.files.getlist('new_images[]')
     
-    if file and file.filename != '':
-        if allowed_file(file.filename):
-            if note.image:
+    if new_files and any(f.filename != '' for f in new_files):
+        saved_filenames = save_uploaded_files(new_files)
+        for i, filename in enumerate(saved_filenames):
+            note_image = NoteImage(
+                filename=filename,
+                note_id=note.id,
+                order=len(note.images) + i  # добавляем в конец
+            )
+            db.session.add(note_image)
+    
+    # Обработка удаления изображений
+    images_to_delete = request.form.getlist('delete_images[]')
+    if images_to_delete:
+        for image_id in images_to_delete:
+            note_image = NoteImage.query.get(image_id)
+            if note_image and note_image.note_id == note.id:
                 try:
-                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], note.image))
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], note_image.filename))
                 except OSError:
-                    pass # Log this error in a real app
-            
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            note.image = filename
+                    pass
+                db.session.delete(note_image)
+    
+    # Обновление порядка изображений
+    order_data = request.form.get('images_order')
+    if order_data:
+        try:
+            order_list = json.loads(order_data)
+            for img_data in order_list:
+                note_image = NoteImage.query.get(img_data['id'])
+                if note_image and note_image.note_id == note.id:
+                    note_image.order = img_data['order']
+        except:
+            pass
     
     db.session.commit()
     return {'message': 'Заметка успешно обновлена!'}, 200
@@ -315,16 +401,38 @@ def delete_note_api(id):
     if note.user_id != current_user.id:
         abort(403)
     
-    if note.image:
-        try:
-            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], note.image))
-        except OSError:
-            pass # Log this error
+    # Удаляем все изображения
+    delete_note_images(id)
             
     db.session.delete(note)
     db.session.commit()
     return {'message': 'Заметка успешно удалена!'}, 200
 
+@app.route('/api/notes/<int:note_id>/images/<int:image_id>', methods=['DELETE'])
+@login_required
+def delete_note_image_api(note_id, image_id):
+    note = Note.query.get_or_404(note_id)
+    is_owner = note.user_id == current_user.id
+    can_edit_shared = NoteShare.query.filter_by(note_id=note_id, user_id=current_user.id, can_edit=True).first()
+
+    if not is_owner and not can_edit_shared:
+        abort(403)
+    
+    note_image = NoteImage.query.get_or_404(image_id)
+    
+    if note_image.note_id != note_id:
+        abort(400)
+    
+    try:
+        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], note_image.filename))
+    except OSError:
+        pass
+    
+    db.session.delete(note_image)
+    db.session.commit()
+    
+    return {'message': 'Изображение удалено'}, 200
+    
 # Темы API
 @app.route('/api/topics', methods=['GET'])
 @login_required
